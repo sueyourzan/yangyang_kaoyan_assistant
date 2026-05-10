@@ -51,6 +51,8 @@ cp .env.example .env
 # 编辑 .env 文件，填入你的 DeepSeek Key
 echo "DEEPSEEK_API_KEY=your_actual_key_here" > .env
 
+# 环境切换为.venv 3.11.15
+
 # 5. 启动应用
 python main.py
 ```
