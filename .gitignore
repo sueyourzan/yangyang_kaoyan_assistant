@@ -1,0 +1,11 @@
+.env
+
+performance_log.json
+
+__pycache__/
+*.pyc
+
+devcontainer-lock.json
+
+.vscode/
+.cache/

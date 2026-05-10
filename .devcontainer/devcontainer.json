@@ -1,0 +1,42 @@
+{
+  "name": "NEEP Consultation Assistant",
+  "image": "mcr.azure.cn/devcontainers/python:3.11-bullseye",
+  "runArgs": [
+    "--memory=4g",
+    "--cpus=4"
+  ],
+  "mounts": [
+    // 核心修复：使用命名卷挂载缓存目录
+    // Docker 会自动创建该卷，并将其所有权赋予容器内的当前用户 (vscode)
+    "source=pip-cache,target=/home/vscode/.cache/pip,type=volume"
+  ],
+  // 删除或注释掉下面这部分
+  // "features": {
+  //   "ghcr.io/devcontainers/features/python:1": {
+  //     "version": "3.11"
+  //   },
+  //   "ghcr.io/devcontainers/features/git:1": {}
+  // },
+  "features": {
+      "ghcr.io/devcontainers/features/git:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "streamlit.streamlit"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/home/vscode/.venv/bin/python",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "containerEnv": {
+    "PIP_INDEX_URL": "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "PIP_TRUSTED_HOST": "pypi.tuna.tsinghua.edu.cn"
+  },
+  "postCreateCommand": "python -m venv /home/vscode/.venv && /home/vscode/.venv/bin/pip install --no-cache-dir -r requirements.txt",
+  "remoteUser": "vscode"
+}

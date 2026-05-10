@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    # 对应 runArgs
+    mem_limit: 4g
+    cpus: 4
+    # 对应 mounts (pip 缓存)
+    volumes:
+      - pip-cache:/home/vscode/.cache/pip
+    # 对应 .env 文件挂载
+    env_file:
+      - .env
+
+volumes:
+  pip-cache:
