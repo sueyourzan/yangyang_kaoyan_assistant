@@ -3,6 +3,29 @@ import sys
 import subprocess
 import time
 
+def get_dashscope_version():
+    """安全获取版本（关键：避免提前导入）"""
+    # 尝试 1：直接导入（仅当包存在时）
+    try:
+        import dashscope
+        return dashscope.__version__  # 如果存在 __version__ 直接返回
+    except (ImportError, AttributeError):
+        pass  # 包不存在或版本过旧，继续尝试其他方法
+    
+    # 尝试 2：通过 metadata 获取（不触发导入）
+    try:
+        from importlib.metadata import version
+        return version("dashscope")
+    except:
+        pass
+    
+    # 尝试 3：通过 pkg_resources（不触发导入）
+    try:
+        import pkg_resources
+        return pkg_resources.get_distribution("dashscope").version
+    except:
+        return None
+
 def main():
     print("\n🚀 羊羊考研咨询助手启动中...")
     total_start = time.time()
@@ -30,28 +53,34 @@ def main():
     env_time = time.time() - env_start
     print(f"✅ 环境验证完成（{env_time:.2f}秒）")
 
+
+
     # --- 2. 依赖检查 (保持不变) ---
     dep_start = time.time()
-    try:
-        import openai
-        if tuple(map(int, openai.__version__.split(".")[:2])) < (1, 52):
-            print(f"🔧 版本过低 (当前: {openai.__version__})，正在升级...")
-            subprocess.check_call([
-    # "/usr/local/bin/python",
-    "-m", "pip", "install", "-q", 
-    # "--user", 
-    "openai>=1.52.0"
-])
-    except ImportError:
-        print("📦 安装核心依赖 (openai>=1.52.0)...")
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install", "-q", "openai>=1.52.0"
-        ])
+    dash_ver = get_dashscope_version()
 
-    except Exception as e:
-        print(f"❌ 依赖检查异常: {e}")
-        sys.exit(1)
-        
+    # ===== 修复后的版本检查逻辑 =====
+    if dash_ver is None:
+        print("📦 安装 dashscope>=1.22.0...")
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install", "-q", "dashscope>=1.22.0"
+        ])
+    else:
+        try:
+            major, minor, _ = map(int, dash_ver.split("."))
+            if (major, minor) < (1, 22):
+                print(f"🔧 版本过低 (当前: {dash_ver})，升级到 1.22.0+...")
+                subprocess.check_call([
+                    sys.executable, "-m", "pip", "install", "-q", 
+                    "dashscope>=1.22.0", "--upgrade"
+                ])
+        except Exception as e:
+            print(f"⚠️ 版本解析失败: {e}，强制安装最新版")
+            subprocess.check_call([
+                sys.executable, "-m", "pip", "install", "-q", 
+                "dashscope>=1.22.0", "--upgrade"
+            ])
+              
     dep_time = time.time() - dep_start
     print(f"✅ 依赖检查完成（{dep_time:.2f}秒）")
 

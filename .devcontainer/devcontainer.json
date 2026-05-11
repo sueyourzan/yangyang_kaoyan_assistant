@@ -6,11 +6,9 @@
     "--cpus=4"
   ],
   "mounts": [
-    // 核心修复：使用命名卷挂载缓存目录
-    // Docker 会自动创建该卷，并将其所有权赋予容器内的当前用户 (vscode)
+    
     "source=pip-cache,target=/home/vscode/.cache/pip,type=volume"
   ],
-  // 删除或注释掉下面这部分
   // "features": {
   //   "ghcr.io/devcontainers/features/python:1": {
   //     "version": "3.11"

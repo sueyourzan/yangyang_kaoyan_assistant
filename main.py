@@ -1,6 +1,6 @@
 import streamlit as st
 import time
-from openai import OpenAI
+from dashscope import Generation
 import os
 import json
 from dotenv import load_dotenv
@@ -40,7 +40,7 @@ if "perf_logs" not in st.session_state:
 
 # --- 3. 页面配置 ---
 st.set_page_config(
-    page_title="考研助手-小羊",
+    page_title="考研助手-小杨",
     page_icon="📚",
     layout="wide"
 )
@@ -55,9 +55,7 @@ with st.sidebar:
     
     if st.button("🗑️ 清空对话与日志"):
         st.session_state.messages = []
-        st.session_state.perf_stats = []
-        st.rerun()
-        # 同时清空本地文件
+        st.session_state.perf_logs = []
         if os.path.exists(LOG_FILE):
             os.remove(LOG_FILE)
         st.rerun()
@@ -79,13 +77,13 @@ with st.sidebar:
         st.info("暂无历史记录")
 
 
-# --- 5. 核心人设与限制逻辑 (从Flask迁移并增强) ---
+# --- 5. 核心人设与限制逻辑  ---
 # 1. 定义人设 Prompt (从Flask迁移)
 SYSTEM_PROMPT = """
 我叫小杨，是一个专业的考研助手。我的任务是耐心回答各种考研问题以及制定学习规划。
 **我的回答规则：**
 1. **严格范围限制**：我**只回答**与考研相关的问题（如：政治、英语、数学、专业课复习、院校选择、复试调剂、备考心态等）。
-2. **拒绝回答**：如果用户提问非考研内容（如：天气、闲聊、编程代码、历史八卦、生活琐事等），请直接礼貌拒绝，并提醒用户“我只负责解答考研相关问题哦”。
+2. **拒绝回答**：如果用户提问非考研内容（如：天气、闲聊、编程代码、历史八卦、生活琐事等），请直接礼貌拒绝，并提醒用户"我只负责解答考研相关问题哦"。
 3. **语气**：亲切、耐心、专业，像一个陪伴备考的朋友。
 """
 
@@ -117,18 +115,13 @@ if not api_key:
     st.stop()
 
 
-# 2. 初始化客户端
-client = OpenAI(
-    api_key=api_key,
-    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
-)
-
 # --- 6. 聊天逻辑 ---
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "system", "content": SYSTEM_PROMPT}
     ]
 
+# 显示对话历史（不显示system消息）
 for message in st.session_state.messages:
     if message["role"] != "system": # 不显示系统提示词
         with st.chat_message(message["role"]):
@@ -142,14 +135,14 @@ if prompt := st.chat_input("请输入考研问题..."):
         with st.chat_message("assistant"):
             st.markdown("👋 我是考研助手小杨，我只负责解答**考研相关问题**哦（比如复习规划、知识点答疑）。\n\n请问我能帮你解答什么考研困惑吗？")
         
-        # 记录拦截日志 (可选)
+        # 记录拦截日志
         log_entry = {
             "time": time.strftime("%Y-%m-%d %H:%M:%S"),
             "model": "local_filter",
             "user_query": prompt,
             "llm_reply": "Blocked: Non-exam content",
             "first_token_delay_s": 0,
-            "total_cost_s": round(time.time() - time.time(), 3),
+            "total_cost_s": 0,
             "prompt_tokens": 0,
             "completion_tokens": 0,
             "total_tokens": 0
@@ -157,7 +150,6 @@ if prompt := st.chat_input("请输入考研问题..."):
         st.session_state.perf_logs.append(log_entry)
         save_log(log_entry)
         st.rerun()
-        st.stop()
 
     # 2. 如果是考研相关问题，正常处理
     with st.chat_message("user"):
@@ -169,57 +161,86 @@ if prompt := st.chat_input("请输入考研问题..."):
         message_placeholder = st.empty()
         full_response = ""
         
-        # ⏱️ 记录开始时间
-        request_start_time = time.time() 
-        first_token_time = None
-
         try:
-            stream = client.chat.completions.create(
-                model="qwen3-8b",
-                messages=st.session_state.messages,
-                stream=True,
-                temperature=temperature 
+            # 准备消息列表 - 重要修复：包含所有消息，包括system消息
+            input_messages = []
+            for msg in st.session_state.messages:
+                input_messages.append({"role": msg["role"], "content": msg["content"]})
+            
+            # ⚠️ 关键修复：使用正确的Qwen3-8B模型名称
+            request_start_time = time.time()
+            first_token_time = None
+            
+            # 调用DashScope API
+            response = Generation.call(
+                model="qwen3-8b",  # 使用正确的Qwen3-8B模型名称
+                api_key=api_key,
+                messages=input_messages,  # 现在包含system消息
+                result_format='message',      # 必须指定，否则 output 是 str
+                stream=True,                 # 启用流式输出
+                temperature=temperature,
+                top_p=0.8,
+                max_tokens=2000
             )
             
-            # --- 初始化变量 ---
-            full_response = ""
+            # --- 评测变量 ---
             total_prompt_tokens = 0
             total_completion_tokens = 0
-            first_token_time = None # 在这里初始化，防止后续报错
-            request_start_time = time.time() # 确保开始时间在流式请求前
-
-            # 逐字显示回复
-            for chunk in stream:
-                delta_content = chunk.choices[0].delta.content
-                if delta_content is not None:
-                    full_response += delta_content
-                    # 第一个字到达时记录时间
-                    if first_token_time is None:
-                        first_token_time = time.time()
-                    message_placeholder.markdown(full_response + "▌")
-                 
-                # 计算token数量（如果API返回了usage字段）      
-                if hasattr(chunk, 'usage') and chunk.usage is not None:
-                    total_prompt_tokens = chunk.usage.prompt_tokens
-                    total_completion_tokens = chunk.usage.completion_tokens        
-
-            # 最后一次更新，去掉闪烁的光标        
-            message_placeholder.markdown(full_response)
             
+            # --- 逐字显示回复 (核心循环) ---
+            chunks = []  # 存储所有chunk以便后续处理
             
+            for chunk in response:
+                chunks.append(chunk)  # 保存所有chunk
+                
+                # 安全获取内容
+                if hasattr(chunk, 'output') and hasattr(chunk.output, 'choices') and chunk.output.choices:
+                    # 额外检查choices列表是否非空
+                    if len(chunk.output.choices) > 0:
+                        # 提取内容
+                        delta_content = chunk.output.choices[0].message.content
+                        
+                        # 拼接内容
+                        full_response += delta_content
+                        
+                        # 记录首 Token 时间
+                        if first_token_time is None:
+                            first_token_time = time.time()
+                        
+                        # 更新前端显示
+                        message_placeholder.markdown(full_response + "▌")
+            
+            # --- 关键修复：在循环结束后获取token统计 ---
+            # 1. 尝试从响应对象获取token统计
+            if hasattr(response, 'usage'):
+                total_prompt_tokens = response.usage.input_tokens
+                total_completion_tokens = response.usage.output_tokens
+            # 2. 尝试从最后一个chunk获取
+            elif chunks and hasattr(chunks[-1], 'usage'):
+                total_prompt_tokens = chunks[-1].usage.input_tokens
+                total_completion_tokens = chunks[-1].usage.output_tokens
+            # 3. 尝试从第一个chunk获取（有些API在第一个chunk提供完整统计）
+            elif chunks and hasattr(chunks[0], 'usage'):
+                total_prompt_tokens = chunks[0].usage.input_tokens
+                total_completion_tokens = chunks[0].usage.output_tokens
+            # 4. 如果都获取不到，使用估算
+            else:
+                total_prompt_tokens = sum(len(msg["content"].split()) for msg in input_messages)
+                total_completion_tokens = len(full_response.split())
+            
+            # --- 循环结束 ---
             # ⏱️ 记录结束时间
             total_cost = round(time.time() - request_start_time, 3)
             first_token_delay = round(first_token_time - request_start_time, 3) if first_token_time else 0.0
 
-            # --- 7. 生成日志并保存 (新增核心逻辑) ---
+            # --- 7. 生成日志并保存 ---
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             
-            # 构建日志对象 (完全对应你截图的格式)
             log_entry = {
                 "time": current_time,
-                "model": "qwen3-8b",  # 这里可以根据实际使用的模型名称动态设置
+                "model": "qwen3-8b",  # 保持一致
                 "user_query": prompt,
-                "llm_reply": full_response[:500] + "...",  # 只保存前500字符预览
+                "llm_reply": full_response[:500] + "...", # 防止日志过大
                 "first_token_delay_s": first_token_delay,
                 "total_cost_s": total_cost,
                 "prompt_tokens": total_prompt_tokens,
@@ -232,34 +253,37 @@ if prompt := st.chat_input("请输入考研问题..."):
             # 2. 保存到本地文件
             save_log(log_entry)
 
+            # 最后一次更新，去掉闪烁的光标 
+            message_placeholder.markdown(full_response)
+
             # 将回复存入对话历史
             st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-            # 刷新侧边栏以显示新日志
-            st.rerun() 
-
-
         # 报错处理
         except Exception as e:
-            st.error("🔴 API 调用失败")
-            st.markdown(f"**错误详情**: {e}")
-            # 错误处理：根据错误类型显示不同提示
-            error_msg = str(e).lower()
-            
-            if "authentication" in error_msg or "401" in error_msg or "governor" in error_msg:
-                st.markdown("""
-                ### 🛑 认证被拦截 (Governor)
-                **这通常不是代码问题，而是 Key 或网络问题：**
-                
-                1. **密钥错误**：请检查 `.env` 中的 Key 是否**完全复制**（没有多余的空格或换行）。
-                2. **密钥失效**：请去 DeepSeek 官网重新生成一个新的 Key。
-                3. **网络限制**：你所在的网络（福建福州）可能无法直接访问 api.deepseek.com。
-                   * 尝试开启/关闭代理（Clash/V2Ray）。
-                   * 或者在终端 `ping api.deepseek.com` 看看是否超时。
-                """)
+            st.error(f"🔴 调用失败: {str(e)}")
+            # 尝试提供更详细的错误信息
+            if "list index out of range" in str(e).lower():
+                st.warning("API响应格式异常。可能是DashScope服务暂时不稳定，建议稍后重试。")
+            elif "model" in str(e).lower():
+                st.warning("可能是模型名称不正确。请确认DashScope中Qwen3-8B的准确模型名称。")
+            elif "api key" in str(e).lower(): 
+                st.warning("API Key可能无效或未正确配置。")
             else:
-                st.markdown(f"**其他错误**: {e}")
-
-# 保持 main guard 兼容性
-if __name__ == "__main__":
-    pass
+                st.warning("请检查网络连接和DashScope服务状态。")
+            
+            # 记录错误日志
+            request_start_time = request_start_time if 'request_start_time' in locals() else time.time()
+            error_log = {
+                "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "model": "qwen3-8b",
+                "user_query": prompt,
+                "llm_reply": f"Error: {str(e)}",
+                "first_token_delay_s": 0,
+                "total_cost_s": round(time.time() - request_start_time, 3),
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+            }
+            st.session_state.perf_logs.append(error_log)
+            save_log(error_log)
