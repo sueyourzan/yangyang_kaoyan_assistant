@@ -2,13 +2,13 @@
 # 🐑 羊羊考研咨询助手
 
 > **专注考研领域的智能对话系统**
-> 基于 DeepSeek 大模型 API + Streamlit 构建，具备严格的领域限制与性能监控能力
+> 基于 QWEN3-8b 大模型 API + Streamlit 构建，具备严格的领域限制与性能监控能力
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.32%2B-green)](https://streamlit.io)
 [![License](https://img.shields.io/badge/License-MIT-orange)](LICENSE)
 
-在 2026 年的今天，备考不仅需要努力，更需要高效的工具。本项目旨在为你提供一个**零配置、高性能且懂你的考研专属助手**。它不仅能回答专业问题，还能礼貌拒绝无关干扰，让你保持专注。
+        考研备考不仅需要努力，更需要高效的工具。本项目旨在为你提供一个**零配置、高性能且懂你的考研专属助手**。它不仅能回答专业问题，还能礼貌拒绝无关干扰，让你保持专注。
 
 ## 🌟 核心特性
 
@@ -30,13 +30,13 @@
 ### 前置条件
 - **VS Code** + [Dev Containers 扩展](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 - **Docker Desktop** (最新版本)
-- **DeepSeek API 账户** (获取 API Key)
+- **QWEN3-8b API 账户** (获取 API Key)
 
 ### 安装步骤
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/sueyourzan/code_assistant.git
-cd code_assistant
+git clone https://github.com/sueyourzan/yangyang_kaoyan_assistant.git
+cd yangyang_kaoyan_assistant
 
 # 2. 在 VS Code 中打开项目
 code .
@@ -49,7 +49,7 @@ code .
 # 复制环境变量模板
 cp .env.example .env
 # 编辑 .env 文件，填入你的 DeepSeek Key
-echo "DEEPSEEK_API_KEY=your_actual_key_here" > .env
+echo "DASHSCOPE_API_KEY=your_actual_key_here" > .env
 
 # 环境切换为.venv 3.11.15
 

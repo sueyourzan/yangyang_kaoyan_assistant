@@ -9,22 +9,22 @@ def main():
     
     # --- 1. 环境验证 (保持不变) ---
     env_start = time.time()
-    api_key = os.getenv("DEEPSEEK_API_KEY")
+    api_key = os.getenv("DASHSCOPE_API_KEY")
     
     if not api_key:
         try:
             with open(".env", "r") as f:
                 for line in f:
-                    if line.startswith("DEEPSEEK_API_KEY"):
+                    if line.startswith("DASHSCOPE_API_KEY"):
                         api_key = line.split("=", 1)[1].strip().strip('"\'')
-                        os.environ["DEEPSEEK_API_KEY"] = api_key
+                        os.environ["DASHSCOPE_API_KEY"] = api_key
                         break
         except:
             pass
     
     if not api_key:
-        print("❌ 错误：未配置 DEEPSEEK_API_KEY")
-        print("   请创建 .env 文件：DEEPSEEK_API_KEY=你的密钥")
+        print("❌ 错误：未配置 DASHSCOPE_API_KEY")
+        print("   请创建 .env 文件：DASHSCOPE_API_KEY=你的密钥")
         sys.exit(1)
     
     env_time = time.time() - env_start
@@ -37,13 +37,21 @@ def main():
         if tuple(map(int, openai.__version__.split(".")[:2])) < (1, 52):
             print(f"🔧 版本过低 (当前: {openai.__version__})，正在升级...")
             subprocess.check_call([
-    "/usr/local/bin/python", "-m", "pip", "install", "-q", "--user", "openai>=1.52.0"  # 添加 --user
+    # "/usr/local/bin/python",
+    "-m", "pip", "install", "-q", 
+    # "--user", 
+    "openai>=1.52.0"
 ])
     except ImportError:
         print("📦 安装核心依赖 (openai>=1.52.0)...")
         subprocess.check_call([
             sys.executable, "-m", "pip", "install", "-q", "openai>=1.52.0"
         ])
+
+    except Exception as e:
+        print(f"❌ 依赖检查异常: {e}")
+        sys.exit(1)
+        
     dep_time = time.time() - dep_start
     print(f"✅ 依赖检查完成（{dep_time:.2f}秒）")
 
@@ -72,6 +80,7 @@ def main():
     # --- 4. 执行启动 ---
     try:
         print(f"💡 访问地址: http://localhost:8501")
+        print(f"☁️  当前服务: 阿里云 DashScope (Qwen)")
         subprocess.run(cmd, shell=False, check=True)
     except KeyboardInterrupt:
         print("\n👋 服务已停止")

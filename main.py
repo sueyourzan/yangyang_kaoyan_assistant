@@ -110,17 +110,17 @@ st.title("📚 考研助手 - 小杨")
 st.caption("专注考研答疑与规划，只回答考研相关问题")
 
 # 1. 从 .env 读取 Key
-api_key = os.getenv("DEEPSEEK_API_KEY")
+api_key = os.getenv("DASHSCOPE_API_KEY")
 
 if not api_key:
-    st.error("🔑 严重错误：未找到 API Key！")
+    st.error("🔑 严重错误：未找到 API Key！请检查 .env 文件")
     st.stop()
 
 
 # 2. 初始化客户端
 client = OpenAI(
     api_key=api_key,
-    base_url="https://api.deepseek.com/v1"
+    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
 )
 
 # --- 6. 聊天逻辑 ---
@@ -175,7 +175,7 @@ if prompt := st.chat_input("请输入考研问题..."):
 
         try:
             stream = client.chat.completions.create(
-                model="deepseek-chat",
+                model="qwen3-8b",
                 messages=st.session_state.messages,
                 stream=True,
                 temperature=temperature 
@@ -217,7 +217,7 @@ if prompt := st.chat_input("请输入考研问题..."):
             # 构建日志对象 (完全对应你截图的格式)
             log_entry = {
                 "time": current_time,
-                "model": "deepseek-chat",
+                "model": "qwen3-8b",  # 这里可以根据实际使用的模型名称动态设置
                 "user_query": prompt,
                 "llm_reply": full_response[:500] + "...",  # 只保存前500字符预览
                 "first_token_delay_s": first_token_delay,
