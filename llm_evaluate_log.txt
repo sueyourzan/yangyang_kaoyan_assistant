@@ -1,3 +1,0 @@
-{"time": "2026-05-01 15:48:36", "model": "qwen-turbo", "user_query": "你是谁？", "llm_reply": "", "first_token_delay_s": 0.459, "total_cost_s": 0.979}
-{"time": "2026-05-01 15:48:49", "model": "qwen-turbo", "user_query": "闽江大学如何", "llm_reply": "", "first_token_delay_s": 0.338, "total_cost_s": 1.223}
-{"time": "2026-05-01 15:49:04", "model": "qwen-turbo", "user_query": "如何备考11408", "llm_reply": "", "first_token_delay_s": 0.457, "total_cost_s": 2.85}
